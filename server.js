@@ -17,12 +17,14 @@ db.serialize(() => {
         password TEXT
     )`);
 
-  // 2. Bảng Orders (Lưu các món hàng đã đặt)
+  // 2. Bảng Orders
   db.run(`CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
         user_id INTEGER, 
         product_name TEXT, 
         price INTEGER,
+        shipping_address TEXT,
+        phone_number TEXT,
         FOREIGN KEY(user_id) REFERENCES users(id)
     )`);
 
@@ -64,16 +66,18 @@ const checkAuth = (req, res, next) => {
 
 // --- API MUA HÀNG ---
 app.post("/api/checkout", checkAuth, (req, res) => {
-  const { cart } = req.body;
+  const { cart, address, phone } = req.body;
   const userId = req.currentUserId;
 
   if (!cart || cart.length === 0)
     return res.status(400).json({ error: "Giỏ hàng trống" });
+  if (!address || !phone)
+    return res.status(400).json({ error: "Thiếu địa chỉ hoặc số điện thoại" });
 
   const stmt = db.prepare(
-    "INSERT INTO orders (user_id, product_name, price) VALUES (?, ?, ?)",
+    "INSERT INTO orders (user_id, product_name, price, shipping_address, phone_number) VALUES (?, ?, ?, ?, ?)",
   );
-  cart.forEach((item) => stmt.run(userId, item.name, item.price));
+  cart.forEach((item) => stmt.run(userId, item.name, item.price, address, phone));
   stmt.finalize();
 
   console.log(`User ID ${userId} đã đặt hàng thành công!`);

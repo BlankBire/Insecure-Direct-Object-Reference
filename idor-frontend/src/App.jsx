@@ -35,54 +35,104 @@ const Message = ({ msg }) =>
 // CART MODAL COMPONENT
 // ==========================================
 const CartModal = ({ isOpen, onClose, cart, setCart, checkout }) => {
+  const [step, setStep] = useState(1);
+  const [address, setAddress] = useState("");
+  const [phone, setPhone] = useState("");
+
   const total = cart.reduce((sum, item) => sum + item.price, 0);
 
   const removeItem = (indexToRemove) => {
     setCart(cart.filter((_, idx) => idx !== indexToRemove));
   };
 
+  const handleCheckoutSubmit = () => {
+    if (!address || !phone) {
+      alert("Vui lòng nhập đầy đủ địa chỉ và số điện thoại.");
+      return;
+    }
+    checkout(address, phone);
+    setStep(1);
+    setAddress("");
+    setPhone("");
+  };
+
+  const handleClose = () => {
+    onClose();
+    setStep(1);
+  };
+
   return (
-    <div className={`cart-overlay ${isOpen ? "open" : ""}`} onClick={onClose}>
+    <div className={`cart-overlay ${isOpen ? "open" : ""}`} onClick={handleClose}>
       <div className="cart-modal" onClick={(e) => e.stopPropagation()}>
         <div className="cart-header">
-          <h3>Giỏ hàng của bạn</h3>
-          <button className="close-btn" onClick={onClose}>&times;</button>
+          <h3>{step === 1 ? "Giỏ hàng của bạn" : "Thông tin giao hàng"}</h3>
+          <button className="close-btn" onClick={handleClose}>&times;</button>
         </div>
         <div className="cart-body">
-          {cart.length === 0 ? (
-            <div style={{textAlign: 'center', color: '#adb5bd', marginTop: '40px'}}>
-              Chưa có sản phẩm nào
-            </div>
-          ) : (
-            <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
-              {cart.map((item, idx) => (
-                <div key={idx} className="cart-item">
-                  <div className="cart-item-info">
-                    <span className="cart-item-name">{item.name}</span>
-                    <span className="cart-item-price">{item.price.toLocaleString()} đ</span>
+          {step === 1 ? (
+            cart.length === 0 ? (
+              <div style={{textAlign: 'center', color: '#adb5bd', marginTop: '40px'}}>
+                Chưa có sản phẩm nào
+              </div>
+            ) : (
+              <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                {cart.map((item, idx) => (
+                  <div key={idx} className="cart-item">
+                    <div className="cart-item-info">
+                      <span className="cart-item-name">{item.name}</span>
+                      <span className="cart-item-price">{item.price.toLocaleString()} đ</span>
+                    </div>
+                    <button onClick={() => removeItem(idx)} className="cart-item-delete">
+                      Xóa
+                    </button>
                   </div>
-                  <button onClick={() => removeItem(idx)} className="cart-item-delete">
-                    Xóa
-                  </button>
-                </div>
-              ))}
+                ))}
+              </div>
+            )
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "15px", padding: "10px 0" }}>
+              <input 
+                type="text" 
+                className="checkout-input" 
+                placeholder="Địa chỉ giao hàng" 
+                value={address} 
+                onChange={(e) => setAddress(e.target.value)} 
+                required 
+              />
+              <input 
+                type="tel" 
+                className="checkout-input" 
+                placeholder="Số điện thoại" 
+                value={phone} 
+                onChange={(e) => setPhone(e.target.value)} 
+                required 
+              />
             </div>
           )}
         </div>
         {cart.length > 0 && (
           <div className="cart-footer">
-            <div className="cart-total">
-              <span>Tổng cộng:</span>
-              <span style={{color: '#0d6efd'}}>{total.toLocaleString()} VNĐ</span>
-            </div>
-            <div className="cart-actions">
-              <button onClick={() => setCart([])} className="btn secondary">
-                Xóa tất cả
-              </button>
-              <button onClick={checkout} className="btn primary">
-                Đặt hàng
-              </button>
-            </div>
+            {step === 1 ? (
+              <>
+                <div className="cart-total">
+                  <span>Tổng cộng:</span>
+                  <span style={{color: '#0d6efd'}}>{total.toLocaleString()} VNĐ</span>
+                </div>
+                <div className="cart-actions">
+                  <button onClick={() => setCart([])} className="btn secondary">
+                    Xóa tất cả
+                  </button>
+                  <button onClick={() => setStep(2)} className="btn primary">
+                    Đặt hàng
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="cart-actions">
+                <button className="btn outline block" onClick={() => setStep(1)} style={{flex: 1}}>Trở lại</button>
+                <button className="btn primary block" onClick={handleCheckoutSubmit} style={{flex: 1}}>Xác nhận</button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -201,6 +251,8 @@ const OrdersView = ({ token, showMsg }) => {
               <tr>
                 <th>Tên sản phẩm</th>
                 <th>Người mua</th>
+                <th>Địa chỉ</th>
+                <th>SĐT</th>
                 <th style={{ textAlign: "right" }}>Giá tiền</th>
               </tr>
             </thead>
@@ -213,6 +265,8 @@ const OrdersView = ({ token, showMsg }) => {
                       {order.buyer_name || `User ${order.user_id}`}
                     </span>
                   </td>
+                  <td>{order.shipping_address}</td>
+                  <td>{order.phone_number}</td>
                   <td style={{ textAlign: "right", color: '#0d6efd', fontWeight: 600 }}>
                     {order.price.toLocaleString()} VNĐ
                   </td>
@@ -255,7 +309,7 @@ function App() {
     navigate("/");
   };
 
-  const handleCheckout = async () => {
+  const handleCheckout = async (address, phone) => {
     if (cart.length === 0) return showMsg("Chưa có gì trong giỏ hàng!");
     try {
       const res = await fetch("http://localhost:3000/api/checkout", {
@@ -264,7 +318,7 @@ function App() {
           "Content-Type": "application/json",
           Authorization: token,
         },
-        body: JSON.stringify({ cart }),
+        body: JSON.stringify({ cart, address, phone }),
       });
       if (res.ok) {
         setCart([]);
